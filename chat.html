@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; background: #f8f9fa; }
+        .sidebar { width: 25%; background: #0078ef; color: white; padding: 20px; }
+        .logo { 
+            text-align: center; 
+            font-size: 24px; 
+            font-weight: bold; 
+            margin-bottom: 20px; 
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+        .section-header {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .contacts { flex: 1; overflow-y: auto; }
+        .contact { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #495057; cursor: pointer; }
+        .contact:hover { background: #0773e0; }
+        .contact img { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; }
+        .chat-container { width: 75%; display: flex; flex-direction: column; background: white; padding: 20px; }
+        .chat-header { background: #007bff; color: white; padding: 15px; font-size: 18px; text-align: center; }
+        .messages { flex: 1; overflow-y: auto; padding: 20px; }
+        .message { padding: 10px; border-radius: 10px; margin: 5px 0; max-width: 70%; display: flex; flex-direction: column; }
+        .own-message { background: #007bff; color: white; align-self: flex-end; }
+        .other-message { background: #e9ecef; color: black; align-self: flex-start; }
+        .input-box { display: flex; padding: 10px; border-top: 1px solid #ccc; background: white; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 5px; }
+        button { background: #007bff; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 5px; margin-left: 10px; }
+        .groups {
+            margin-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 20px;
+        }
+        .group {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 5px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .group:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .group-info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        .group-name {
+            font-weight: bold;
+        }
+        .member-count {
+            font-size: 12px;
+            color: #dcdcdc;
+        }
+        .sender-name {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .message-text {
+            word-break: break-word;
+        }
+        .group-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .group-button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: #0084ff;
+            color: white;
+            cursor: pointer;
+        }
+        .group-button:hover {
+            background: #005bb5;
+        }
+        .group-id {
+            font-size: 10px;
+            color: #dcdcdc;
+            margin-top: 2px;
+        }
+        .message-time {
+            font-size: 10px;
+            margin-top: 4px;
+        }
+        .own-message .message-time {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .message-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            font-size: 10px;
+        }
+        .delete-time {
+            color: #ff4444;
+            margin-left: 8px;
+        }
+        .auto-delete-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .auto-delete-option {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .auto-delete-option input[type="radio"] {
+            margin: 0;
+        }
+        .auto-delete-option label {
+            font-size: 12px;
+            color: #666;
+        }
+        .contact-status {
+            font-size: 12px;
+            margin-top: 2px;
+            transition: color 0.3s ease;
+        }
+        .contact-name {
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, getDocs, addDoc, onSnapshot, orderBy, query, where, arrayUnion, getDoc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXFdg60qtmU_f7uS948WGDFpStY9GuGPA",
+            authDomain: "wevitchat-fb897.firebaseapp.com",
+            projectId: "wevitchat-fb897",
+            storageBucket: "wevitchat-fb897.firebasestorage.app",
+            messagingSenderId: "839408081278",
+            appId: "1:839408081278:web:c5ad9cd9022f92510d7b2f",
+            measurementId: "G-338S0XFLG4"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUserEmail = "";
+        let selectedChatUser = null;
+        let selectedGroup = null;
+        let statusUnsubscribe = null;
+        let onlineStatusRef = null;
+        let statusUpdateInterval = null;
+        let isAppActive = true;
+        let lastStatusUpdate = 0;
+        let statusCheckInterval = null;
+        let connectionStatus = 'online';
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 3;
+        const STATUS_CHECK_INTERVAL = 30000; // 30 seconds
+        const STATUS_TIMEOUT = 60000; // 1 minute
+        const STATUS_UPDATE_INTERVAL = 30000; // 30 seconds
+        let isAIBot = false;
+        let isHIBPChat = false;
+
+        // AI Bot responses
+        const aiResponses = {
+            greeting: [
+                "Hello! I'm your Cybersecurity Assistant. How can I help you today?",
+                "Hi there! I can provide you with cybersecurity tips and latest news. What would you like to know?",
+                "Welcome! I'm here to help you stay informed about cybersecurity. What's on your mind?"
+            ],
+            help: [
+                "I'm your comprehensive Cybersecurity Assistant! Here's what I can help you with:\n\n" +
+                "1. Cybersecurity News:\n" +
+                "   - Latest cyber attacks and breaches\n" +
+                "   - New security vulnerabilities\n" +
+                "   - Security patches and updates\n" +
+                "   - Industry trends and developments\n\n" +
+                "2. Security Tips & Best Practices:\n" +
+                "   - Password security and management\n" +
+                "   - Two-factor authentication\n" +
+                "   - Safe browsing habits\n" +
+                "   - Email security\n" +
+                "   - Social media safety\n\n" +
+                "3. Common Threats & Prevention:\n" +
+                "   - Phishing attacks\n" +
+                "   - Malware and ransomware\n" +
+                "   - Identity theft\n" +
+                "   - Social engineering\n" +
+                "   - Data breaches\n\n" +
+                "4. Personal Security:\n" +
+                "   - Mobile device security\n" +
+                "   - Home network security\n" +
+                "   - Online privacy\n" +
+                "   - Safe online shopping\n" +
+                "   - Public Wi-Fi safety\n\n" +
+                "5. Technical Topics:\n" +
+                "   - Encryption basics\n" +
+                "   - VPN usage\n" +
+                "   - Firewall setup\n" +
+                "   - Antivirus software\n" +
+                "   - Backup strategies\n\n" +
+                "Just ask me about any of these topics! For example:\n" +
+                "- 'Tell me about password security'\n" +
+                "- 'What's the latest cybersecurity news?'\n" +
+                "- 'How can I protect myself from phishing?'\n" +
+                "- 'Give me tips for safe online shopping'\n" +
+                "- 'Explain two-factor authentication'",
+                "I'm your go-to source for cybersecurity information! Here's what I can do:\n\n" +
+                "🔍 News & Updates:\n" +
+                "- Latest cyber incidents\n" +
+                "- New security threats\n" +
+                "- Industry developments\n\n" +
+                "🛡️ Security Tips:\n" +
+                "- Password management\n" +
+                "- Online safety\n" +
+                "- Device security\n" +
+                "- Privacy protection\n\n" +
+                "⚠️ Threat Prevention:\n" +
+                "- Phishing awareness\n" +
+                "- Malware protection\n" +
+                "- Identity theft prevention\n" +
+                "- Social engineering defense\n\n" +
+                "💻 Technical Guidance:\n" +
+                "- Network security\n" +
+                "- Encryption basics\n" +
+                "- VPN usage\n" +
+                "- Backup strategies\n\n" +
+                "Just ask me about any topic! Try:\n" +
+                "- 'Tell me about password security'\n" +
+                "- 'Latest cybersecurity news'\n" +
+                "- 'How to prevent phishing'\n" +
+                "- 'Safe online shopping tips'\n" +
+                "- 'Two-factor authentication guide'"
+            ],
+            news: [
+                "Here are the latest cybersecurity news headlines:\n\n" +
+                "1. Recent Major Cyber Attacks:\n" +
+                "   - [Latest ransomware attack details]\n" +
+                "   - [Recent data breach information]\n" +
+                "   - [New malware campaign details]\n\n" +
+                "2. Security Vulnerabilities:\n" +
+                "   - [New vulnerability in popular software]\n" +
+                "   - [Critical security patch released]\n" +
+                "   - [Zero-day vulnerability details]\n\n" +
+                "3. Industry Updates:\n" +
+                "   - [New security regulations]\n" +
+                "   - [Major security company acquisitions]\n" +
+                "   - [Emerging security technologies]\n\n" +
+                "Would you like more details about any of these topics?",
+                "Current Cybersecurity News Roundup:\n\n" +
+                "🔴 Breaking News:\n" +
+                "- [Latest major cyber incident]\n" +
+                "- [Recent security breach]\n" +
+                "- [New threat actor activities]\n\n" +
+                "🟡 Security Alerts:\n" +
+                "- [Critical vulnerability alert]\n" +
+                "- [Important security patch]\n" +
+                "- [New malware threat]\n\n" +
+                "🟢 Industry Updates:\n" +
+                "- [New security standards]\n" +
+                "- [Company security initiatives]\n" +
+                "- [Technology advancements]\n\n" +
+                "Let me know if you want more information about any of these topics!"
+            ],
+            tips: [
+                "Here are some essential cybersecurity tips:\n\n" +
+                "1. Password Security:\n" +
+                "   - Use strong, unique passwords\n" +
+                "   - Enable two-factor authentication\n" +
+                "   - Use a password manager\n" +
+                "   - Change passwords regularly\n\n" +
+                "2. Online Safety:\n" +
+                "   - Keep software updated\n" +
+                "   - Use secure Wi-Fi\n" +
+                "   - Enable browser security features\n" +
+                "   - Be cautious with email attachments\n\n" +
+                "3. Data Protection:\n" +
+                "   - Regular backups\n" +
+                "   - Encryption for sensitive data\n" +
+                "   - Secure file sharing\n" +
+                "   - Safe cloud storage practices\n\n" +
+                "4. Privacy:\n" +
+                "   - Review privacy settings\n" +
+                "   - Limit personal information sharing\n" +
+                "   - Use privacy-focused browsers\n" +
+                "   - Monitor online presence\n\n" +
+                "Would you like more specific tips about any of these areas?",
+                "Key Security Practices:\n\n" +
+                "🔐 Password Management:\n" +
+                "- Create strong, unique passwords\n" +
+                "- Use 2FA/MFA\n" +
+                "- Consider password managers\n" +
+                "- Regular password updates\n\n" +
+                "🌐 Online Safety:\n" +
+                "- Keep systems updated\n" +
+                "- Secure network usage\n" +
+                "- Safe browsing habits\n" +
+                "- Email security\n\n" +
+                "💾 Data Protection:\n" +
+                "- Regular backups\n" +
+                "- Data encryption\n" +
+                "- Secure sharing\n" +
+                "- Cloud security\n\n" +
+                "🔒 Privacy Protection:\n" +
+                "- Privacy settings\n" +
+                "- Information sharing\n" +
+                "- Browser security\n" +
+                "- Online monitoring\n\n" +
+                "Need more details about any of these topics?"
+            ],
+            default: [
+                "I'm not sure about that specific topic. Would you like to know about:\n\n" +
+                "1. Latest cybersecurity news\n" +
+                "2. Security tips and best practices\n" +
+                "3. Common cyber threats\n" +
+                "4. Password security\n" +
+                "5. Online safety guidelines\n\n" +
+                "Just ask me about any of these topics!",
+                "I can help you with cybersecurity news and tips. Here are some topics I can discuss:\n\n" +
+                "📰 News & Updates\n" +
+                "🛡️ Security Tips\n" +
+                "⚠️ Threat Prevention\n" +
+                "🔒 Privacy Protection\n" +
+                "💻 Technical Security\n\n" +
+                "What would you like to learn about?",
+                "Let me know if you want information about:\n\n" +
+                "• Latest cybersecurity news\n" +
+                "• Security best practices\n" +
+                "• Common threats\n" +
+                "• Password security\n" +
+                "• Online safety\n\n" +
+                "Just ask me about any of these topics!"
+            ]
+        };
+
+
+        // Function to check network connectivity
+        function checkNetworkStatus() {
+            return navigator.onLine;
+        }
+
+        // Function to handle network status changes
+        function handleNetworkStatusChange() {
+            const isOnline = navigator.onLine;
+            if (isOnline !== (connectionStatus === 'online')) {
+                connectionStatus = isOnline ? 'online' : 'offline';
+                if (isOnline) {
+                    reconnectAttempts = 0;
+                    updateUserStatus(true);
+                } else {
+                    updateUserStatus(false);
+                }
+            }
+        }
+
+        // Function to update user's online status
+        async function updateUserStatus(isOnline) {
+            if (!currentUserEmail) return;
+
+            try {
+                const now = Date.now();
+                // Prevent too frequent updates
+                if (isOnline && (now - lastStatusUpdate) < 5000) {
+                    return;
+                }
+                lastStatusUpdate = now;
+
+                const userRef = doc(db, "users", currentUserEmail);
+                const userDoc = await getDoc(userRef);
+
+                if (userDoc.exists()) {
+                    // Only update status for existing users
+                    await updateDoc(userRef, {
+                        status: isOnline ? "Online" : "Offline",
+                        lastSeen: now
+                    });
+                }
+            } catch (error) {
+                console.error("Error updating status:", error);
+            }
+        }
+
+        // Function to listen to user status changes
+        function listenToUserStatus(email) {
+            if (statusUnsubscribe) {
+                statusUnsubscribe();
+            }
+
+            const userRef = doc(db, "users", email);
+            statusUnsubscribe = onSnapshot(userRef, (doc) => {
+                if (doc.exists()) {
+                    const userData = doc.data();
+                    updateStatusDisplay(email, userData.status, userData.lastSeen);
+                }
+            }, (error) => {
+                console.error("Error listening to status:", error);
+            });
+        }
+
+        // Function to update status display in UI
+        function updateStatusDisplay(email, status, lastSeen) {
+            const contactsDiv = document.getElementById('contacts');
+            const contactElements = contactsDiv.getElementsByClassName('contact');
+            
+            for (let contact of contactElements) {
+                const contactEmail = contact.getAttribute('data-email');
+                if (contactEmail === email) {
+                    const statusElement = contact.querySelector('.contact-status');
+                    if (statusElement) {
+                        if (status === "Online") {
+                            statusElement.textContent = "Online";
+                            statusElement.style.color = "#28a745"; // Green color for online
+                            statusElement.style.fontWeight = "bold";
+                        } else {
+                            const lastSeenDate = new Date(lastSeen);
+                            const now = new Date();
+                            const diffMinutes = Math.floor((now - lastSeenDate) / 60000);
+                            
+                            if (diffMinutes < 1) {
+                                statusElement.textContent = "Just now";
+                            } else if (diffMinutes < 60) {
+                                statusElement.textContent = `${diffMinutes}m ago`;
+                            } else if (diffMinutes < 1440) {
+                                const hours = Math.floor(diffMinutes / 60);
+                                statusElement.textContent = `${hours}h ago`;
+                            } else {
+                                const days = Math.floor(diffMinutes / 1440);
+                                statusElement.textContent = `${days}d ago`;
+                            }
+                            statusElement.style.color = "#ff4444"; // Red color for offline
+                            statusElement.style.fontWeight = "normal";
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Function to handle visibility change
+        function handleVisibilityChange() {
+            if (document.visibilityState === 'visible') {
+                updateUserStatus(true);
+            } else {
+                updateUserStatus(false);
+            }
+        }
+
+        // Function to handle before unload
+        function handleBeforeUnload() {
+            // Delete AI bot messages before unload
+            if (isAIBot) {
+                const chatKey = currentUserEmail < 'ai_assistant'
+                    ? `${currentUserEmail}_ai_assistant`
+                    : `ai_assistant_${currentUserEmail}`;
+                
+                const messagesRef = collection(db, "messages", chatKey, "chats");
+                getDocs(messagesRef).then(snapshot => {
+                    snapshot.forEach(doc => {
+                        deleteDoc(doc.ref);
+                    });
+                });
+            }
+
+            updateUserStatus(false);
+            if (statusUnsubscribe) {
+                statusUnsubscribe();
+            }
+        }
+
+        // Function to listen to online status changes
+        function listenToOnlineStatus() {
+            if (statusUnsubscribe) {
+                statusUnsubscribe();
+            }
+
+            const onlineStatusRef = collection(db, "onlineStatus");
+            statusUnsubscribe = onSnapshot(onlineStatusRef, (snapshot) => {
+                const now = Date.now();
+                
+                // First, mark all contacts as offline
+                const contactsDiv = document.getElementById('contacts');
+                const contactElements = contactsDiv.getElementsByClassName('contact');
+                for (let contact of contactElements) {
+                    const statusElement = contact.querySelector('.contact-status');
+                    if (statusElement) {
+                        statusElement.textContent = "Offline";
+                        statusElement.style.color = "#ff4444";
+                    }
+                }
+
+                // Then update online users
+                snapshot.forEach((doc) => {
+                    const userEmail = doc.id;
+                    const userData = doc.data();
+                    
+                    // Check if the status is still valid
+                    const lastUpdate = userData.lastUpdate || 0;
+                    const isRecent = (now - lastUpdate) < STATUS_TIMEOUT;
+
+                    if (isRecent) {
+                        updateStatusDisplay(userEmail, "Online", userData.lastActive);
+                    } else {
+                        // If status is not recent, mark as offline and clean up
+                        updateStatusDisplay(userEmail, "Offline", userData.lastActive);
+                        deleteDoc(doc.ref).catch(console.error);
+                    }
+                });
+            }, (error) => {
+                console.error("Error in status listener:", error);
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++;
+                    setTimeout(listenToOnlineStatus, 5000 * reconnectAttempts);
+                }
+            });
+        }
+
+        // Make functions globally available
+        window.createGroup = function() {
+            const groupName = prompt("Enter group name (this will be the unique ID):");
+            if (!groupName) return;
+
+            // Convert group name to URL-safe format
+            const groupId = groupName.toLowerCase()
+                .replace(/[^a-z0-9]/g, '_') // Replace non-alphanumeric chars with underscore
+                .replace(/_+/g, '_') // Replace multiple underscores with single
+                .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+
+            // Check if group ID already exists
+            const groupsRef = collection(db, "groups");
+            const q = query(groupsRef, where("groupId", "==", groupId));
+            
+            getDocs(q).then(snapshot => {
+                if (!snapshot.empty) {
+                    alert("This group name is already taken. Please choose another name.");
+                    return;
+                }
+
+                // Create the group with the name as ID
+                addDoc(groupsRef, {
+                    name: groupName,
+                    groupId: groupId,
+                    createdBy: currentUserEmail,
+                    members: [currentUserEmail],
+                    createdAt: Date.now()
+                }).then(docRef => {
+                    alert(`Group created successfully!\nGroup ID: ${groupId}\nShare this ID with others to join the group.`);
+                    loadGroups();
+                }).catch(error => {
+                    console.error("Error creating group:", error);
+                    alert("Failed to create group");
+                });
+            }).catch(error => {
+                console.error("Error checking group name:", error);
+                alert("Error checking group name availability");
+            });
+        }
+
+        window.joinGroup = function() {
+            const groupId = prompt("Enter group ID (group name):");
+            if (!groupId) return;
+
+            // Convert input to URL-safe format
+            const safeGroupId = groupId.toLowerCase()
+                .replace(/[^a-z0-9]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_|_$/g, '');
+
+            const groupsRef = collection(db, "groups");
+            const q = query(groupsRef, where("groupId", "==", safeGroupId));
+            
+            getDocs(q).then(snapshot => {
+                if (!snapshot.empty) {
+                    const groupDoc = snapshot.docs[0];
+                    const group = groupDoc.data();
+                    if (!group.members.includes(currentUserEmail)) {
+                        updateDoc(doc(db, "groups", groupDoc.id), {
+                            members: arrayUnion(currentUserEmail)
+                        }).then(() => {
+                            alert(`Successfully joined group: ${group.name}`);
+                            loadGroups();
+                        }).catch(error => {
+                            console.error("Error joining group:", error);
+                            alert("Failed to join group");
+                        });
+                    } else {
+                        alert("You are already a member of this group");
+                    }
+                } else {
+                    alert("Group not found. Please check the group name and try again.");
+                }
+            }).catch(error => {
+                console.error("Error joining group:", error);
+                alert("Failed to join group");
+            });
+        }
+
+        function generateGroupId() {
+            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        }
+
+        function loadGroups() {
+            const groupsDiv = document.getElementById('groups');
+            groupsDiv.innerHTML = '<p>Loading groups...</p>';
+
+            const groupsRef = collection(db, "groups");
+            const q = query(groupsRef, where("members", "array-contains", currentUserEmail));
+
+            getDocs(q).then(snapshot => {
+                groupsDiv.innerHTML = '';
+                if (snapshot.empty) {
+                    groupsDiv.innerHTML = '<p>No groups available.</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const group = doc.data();
+                    const groupElement = document.createElement('div');
+                    groupElement.classList.add('group');
+                    groupElement.onclick = () => selectGroup(doc.id, group);
+
+                    const groupInfo = document.createElement('div');
+                    groupInfo.classList.add('group-info');
+
+                    const nameElement = document.createElement('div');
+                    nameElement.classList.add('group-name');
+                    nameElement.textContent = group.name;
+
+                    const memberCount = document.createElement('div');
+                    memberCount.classList.add('member-count');
+                    memberCount.textContent = `${group.members.length} members`;
+
+                    const groupIdElement = document.createElement('div');
+                    groupIdElement.classList.add('group-id');
+                    groupIdElement.textContent = `ID: ${group.groupId}`;
+                    groupIdElement.style.fontSize = '10px';
+                    groupIdElement.style.color = '#dcdcdc';
+
+                    groupInfo.appendChild(nameElement);
+                    groupInfo.appendChild(memberCount);
+                    groupInfo.appendChild(groupIdElement);
+
+                    groupElement.appendChild(groupInfo);
+                    groupsDiv.appendChild(groupElement);
+                });
+            }).catch(error => {
+                console.error("Error fetching groups:", error);
+                groupsDiv.innerHTML = '<p>Error loading groups.</p>';
+            });
+        }
+
+        function selectGroup(groupId, group) {
+            selectedGroup = { id: groupId, ...group };
+            selectedChatUser = null;
+            document.getElementById('chat-header').textContent = `Group: ${group.name}`;
+            document.getElementById('messages').innerHTML = '';
+            loadGroupMessages();
+        }
+
+        function loadGroupMessages() {
+            if (!selectedGroup) return;
+
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '<p>Loading messages...</p>';
+
+            const messagesRef = collection(db, "groups", selectedGroup.id, "messages");
+            const messagesQuery = query(messagesRef, orderBy("timestamp"));
+
+            onSnapshot(messagesQuery, async (snapshot) => {
+                messagesDiv.innerHTML = '';
+                for (const doc of snapshot.docs) {
+                    const msg = doc.data();
+                    // Check if message should be deleted
+                    if (msg.deleteAt && msg.deleteAt < Date.now()) {
+                        deleteDoc(doc.ref);
+                        continue;
+                    }
+
+                    const msgElement = document.createElement('div');
+                    msgElement.classList.add('message');
+                    if (msg.sender === currentUserEmail) {
+                        msgElement.classList.add('own-message');
+                    }
+
+                    // Get username from users collection
+                    const usersRef = collection(db, "users");
+                    const q = query(usersRef, where("email", "==", msg.sender));
+                    const userSnapshot = await getDocs(q);
+                    let username = msg.sender;
+                    if (!userSnapshot.empty) {
+                        username = userSnapshot.docs[0].data().username;
+                    }
+
+                    const senderName = document.createElement('div');
+                    senderName.classList.add('sender-name');
+                    senderName.textContent = username;
+
+                    const messageText = document.createElement('div');
+                    messageText.classList.add('message-text');
+                    messageText.textContent = msg.text;
+
+                    const messageInfo = document.createElement('div');
+                    messageInfo.classList.add('message-info');
+                    messageInfo.innerHTML = `
+                        <small>${new Date(msg.timestamp).toLocaleTimeString()}</small>
+                        ${msg.deleteAt ? `<small class="delete-time">Deletes in ${Math.ceil((msg.deleteAt - Date.now()) / 60000)}m</small>` : ''}
+                    `;
+
+                    msgElement.appendChild(senderName);
+                    msgElement.appendChild(messageText);
+                    msgElement.appendChild(messageInfo);
+                    messagesDiv.appendChild(msgElement);
+                }
+            });
+        }
+
+        // Function to get AI response
+        function getAIResponse(message) {
+            const lowerMessage = message.toLowerCase();
+            
+            if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
+                return aiResponses.greeting[Math.floor(Math.random() * aiResponses.greeting.length)];
+            }
+            else if (lowerMessage.includes('help') || lowerMessage.includes('what can you do') || 
+                     lowerMessage.includes('capabilities') || lowerMessage.includes('topics')) {
+                return aiResponses.help[Math.floor(Math.random() * aiResponses.help.length)];
+            }
+            else if (lowerMessage.includes('news') || lowerMessage.includes('latest') || 
+                     lowerMessage.includes('update') || lowerMessage.includes('breach')) {
+                return aiResponses.news[Math.floor(Math.random() * aiResponses.news.length)];
+            }
+            else if (lowerMessage.includes('tip') || lowerMessage.includes('advice') || 
+                     lowerMessage.includes('secure') || lowerMessage.includes('protect') || 
+                     lowerMessage.includes('prevent') || lowerMessage.includes('safety')) {
+                return aiResponses.tips[Math.floor(Math.random() * aiResponses.tips.length)];
+            }
+            else {
+                return aiResponses.default[Math.floor(Math.random() * aiResponses.default.length)];
+            }
+        }
+
+        // BreachDirectory API function
+        async function checkBreachDirectory(email) {
+            try {
+                // Validate email format
+                if (!isValidEmail(email)) {
+                    return {
+                        found: false,
+                        message: "Please enter a valid email address."
+                    };
+                }
+
+                // Rate limiting check
+                const lastCheck = localStorage.getItem('lastBreachCheck');
+                const now = Date.now();
+                if (lastCheck && (now - parseInt(lastCheck)) < 5000) { // 5 second cooldown
+                    return {
+                        found: false,
+                        message: "Please wait a few seconds before checking another email."
+                    };
+                }
+                localStorage.setItem('lastBreachCheck', now.toString());
+
+                // Sanitize email
+                const sanitizedEmail = email.trim().toLowerCase();
+                
+                const options = {
+                    method: 'GET',
+                    headers: {
+                        'X-RapidAPI-Key': '1f166f4acdmsh193f04f744cb53bp1b97b7jsn0a2d7c2011d6',
+                        'X-RapidAPI-Host': 'breachdirectory.p.rapidapi.com'
+                    }
+                };
+
+                const url = `https://breachdirectory.p.rapidapi.com/?func=auto&term=${encodeURIComponent(sanitizedEmail)}`;
+                
+                const response = await fetch(url, options);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.success || !data.result || data.result.length === 0) {
+                    return {
+                        found: false,
+                        message: "Good news! No data breaches found for this email address."
+                    };
+                }
+
+                // Sanitize breach data before returning
+                const sanitizedBreaches = data.result.map(breach => ({
+                    name: breach.name || 'Unknown Breach',
+                    description: breach.description || '',
+                    date: breach.date || '',
+                    data_classes: breach.data_classes || [],
+                    verification: breach.verification || ''
+                }));
+
+                return {
+                    found: true,
+                    breaches: sanitizedBreaches,
+                    message: `Found ${sanitizedBreaches.length} data breaches for this email address.`
+                };
+            } catch (error) {
+                console.error('BreachDirectory API Error:', error);
+                return {
+                    found: false,
+                    message: "Error checking data breaches. Please try again later."
+                };
+            }
+        }
+
+        // Email validation function
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Function to handle API key setup
+        function setupBreachDirectoryAPIKey(apiKey) {
+            if (apiKey && apiKey.trim() !== '') {
+                localStorage.setItem('breach_directory_api_key', apiKey.trim());
+                return {
+                    success: true,
+                    message: "API key set up successfully! You can now check email addresses for data breaches."
+                };
+            }
+            return {
+                success: false,
+                message: "Invalid API key. Please try again."
+            };
+        }
+
+        // Function to send message
+        function sendMessage() {
+            if (!selectedChatUser && !selectedGroup) return alert('Select a contact or group first!');
+            const messageText = document.getElementById('messageInput').value.trim();
+            if (messageText === '') return;
+
+            // Get selected auto-delete time
+            const autoDeleteTime = document.querySelector('input[name="autoDelete"]:checked')?.value;
+            let deleteAt = null;
+            
+            if (autoDeleteTime) {
+                const now = Date.now();
+                const timeInMs = parseInt(autoDeleteTime) * 60 * 1000;
+                deleteAt = now + timeInMs;
+            }
+
+            if (selectedGroup) {
+                // Get username for the sender
+                const usersRef = collection(db, "users");
+                const q = query(usersRef, where("email", "==", currentUserEmail));
+                getDocs(q).then(snapshot => {
+                    let username = currentUserEmail;
+                    if (!snapshot.empty) {
+                        username = snapshot.docs[0].data().username;
+                    }
+                    
+                    // Send group message with username and auto-delete time
+                    addDoc(collection(db, "groups", selectedGroup.id, "messages"), {
+                        sender: currentUserEmail,
+                        senderName: username,
+                        text: messageText,
+                        timestamp: Date.now(),
+                        deleteAt: deleteAt
+                    });
+                });
+            } else {
+                const chatKey = currentUserEmail < selectedChatUser.email
+                    ? `${currentUserEmail}_${selectedChatUser.email}`
+                    : `${selectedChatUser.email}_${currentUserEmail}`;
+
+                // Send user message
+                addDoc(collection(db, "messages", chatKey, "chats"), {
+                    sender: currentUserEmail,
+                    text: messageText,
+                    timestamp: Date.now(),
+                    deleteAt: deleteAt
+                });
+
+                // Handle BreachDirectory chat
+                if (isHIBPChat) {
+                    setTimeout(async () => {
+                        const result = await checkBreachDirectory(messageText);
+                        let responseText = result.message;
+                        
+                        if (result.found && result.breaches) {
+                            responseText += "\n\nBreach Details:\n";
+                            result.breaches.forEach(breach => {
+                                responseText += `\n• ${breach.name}\n`;
+                                if (breach.description) {
+                                    responseText += `  - Description: ${breach.description}\n`;
+                                }
+                                if (breach.data_classes && breach.data_classes.length > 0) {
+                                    responseText += `  - Compromised data: ${breach.data_classes.join(', ')}\n`;
+                                }
+                                if (breach.verification) {
+                                    responseText += `  - Verification: ${breach.verification}\n`;
+                                }
+                                if (breach.date) {
+                                    responseText += `  - Date: ${breach.date}\n`;
+                                }
+                            });
+                        }
+                        
+                        addDoc(collection(db, "messages", chatKey, "chats"), {
+                            sender: "Breach Checker",
+                            text: responseText,
+                            timestamp: Date.now(),
+                            isHIBP: true
+                        });
+                    }, 1000);
+                }
+                // Handle AI bot chat
+                else if (isAIBot) {
+                    setTimeout(() => {
+                        const aiResponse = getAIResponse(messageText);
+                        addDoc(collection(db, "messages", chatKey, "chats"), {
+                            sender: "AI Assistant",
+                            text: aiResponse,
+                            timestamp: Date.now(),
+                            isAI: true
+                        });
+                    }, 1000);
+                }
+            }
+
+            document.getElementById('messageInput').value = '';
+            document.querySelectorAll('input[name="autoDelete"]').forEach(radio => radio.checked = false);
+        }
+
+        function logout() {
+            signOut(auth).then(() => {
+                window.location.href = 'index.html';
+            }).catch(error => {
+                console.error("Logout failed:", error);
+            });
+        }
+
+        function loadContacts() {
+            const contactsDiv = document.getElementById('contacts');
+            contactsDiv.innerHTML = '<p>Loading...</p>';
+            
+            // Add BreachDirectory Checker contact first
+            const hibpElement = document.createElement('div');
+            hibpElement.classList.add('contact');
+            hibpElement.setAttribute('data-email', 'breach_checker');
+            hibpElement.onclick = () => {
+                selectChat({
+                    email: 'breach_checker',
+                    username: 'Breach Directory',
+                    profilePic: 'breach.png'
+                });
+                isHIBPChat = true;
+                isAIBot = false;
+            };
+
+            const hibpAvatar = document.createElement('img');
+            hibpAvatar.src = "https://ui-avatars.com/api/?name=Breach+Directory&background=ff4444&color=fff";
+            
+            const hibpInfo = document.createElement('div');
+            hibpInfo.classList.add('contact-info');
+            
+            const hibpName = document.createElement('div');
+            hibpName.classList.add('contact-name');
+            hibpName.textContent = 'Breach Directory';
+            
+            const hibpStatus = document.createElement('div');
+            hibpStatus.classList.add('contact-status');
+            hibpStatus.textContent = "Online";
+            hibpStatus.style.color = "#28a745";
+
+            hibpInfo.appendChild(hibpName);
+            hibpInfo.appendChild(hibpStatus);
+            hibpElement.appendChild(hibpAvatar);
+            hibpElement.appendChild(hibpInfo);
+            contactsDiv.appendChild(hibpElement);
+
+            // Add AI Bot contact
+            const aiBotElement = document.createElement('div');
+            aiBotElement.classList.add('contact');
+            aiBotElement.setAttribute('data-email', 'ai_assistant');
+            aiBotElement.onclick = () => {
+                selectChat({
+                    email: 'ai_assistant',
+                    username: 'Cybersecurity Assistant',
+                    profilePic: 'ai.png'
+                });
+                isAIBot = true;
+                isHIBPChat = false;
+            };
+
+            const aiAvatar = document.createElement('img');
+            aiAvatar.src = "https://ui-avatars.com/api/?name=AI+Assistant&background=007bff&color=fff";
+            
+            const aiInfo = document.createElement('div');
+            aiInfo.classList.add('contact-info');
+            
+            const aiName = document.createElement('div');
+            aiName.classList.add('contact-name');
+            aiName.textContent = 'Cybersecurity Assistant';
+            
+            const aiStatus = document.createElement('div');
+            aiStatus.classList.add('contact-status');
+            aiStatus.textContent = "Online";
+            aiStatus.style.color = "#28a745";
+
+            aiInfo.appendChild(aiName);
+            aiInfo.appendChild(aiStatus);
+            aiBotElement.appendChild(aiAvatar);
+            aiBotElement.appendChild(aiInfo);
+            contactsDiv.appendChild(aiBotElement);
+
+            // Load other contacts
+            getDocs(collection(db, "users")).then(snapshot => {
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    if (user.email !== currentUserEmail) {
+                        const contactElement = document.createElement('div');
+                        contactElement.classList.add('contact');
+                        contactElement.setAttribute('data-email', user.email);
+                        contactElement.onclick = () => {
+                            selectChat(user);
+                            listenToUserStatus(user.email);
+                            isAIBot = false;
+                            isHIBPChat = false;
+                        };
+
+                        const avatar = document.createElement('img');
+                        avatar.src = user.profilePic || "user.png";
+                        
+                        const contactInfo = document.createElement('div');
+                        contactInfo.classList.add('contact-info');
+                        
+                        const usernameElement = document.createElement('div');
+                        usernameElement.classList.add('contact-name');
+                        usernameElement.textContent = user.username;
+                        
+                        const statusElement = document.createElement('div');
+                        statusElement.classList.add('contact-status');
+                        statusElement.textContent = user.status || "Offline";
+                        statusElement.style.color = user.status === "Online" ? "#28a745" : "#ff4444";
+
+                        contactInfo.appendChild(usernameElement);
+                        contactInfo.appendChild(statusElement);
+                        contactElement.appendChild(avatar);
+                        contactElement.appendChild(contactInfo);
+                        contactsDiv.appendChild(contactElement);
+                    }
+                });
+            }).catch(error => {
+                console.error("Error fetching contacts:", error);
+                contactsDiv.innerHTML = '<p>Error loading contacts.</p>';
+            });
+        }
+
+        function selectChat(user) {
+            // If we were previously chatting with AI or HIBP and switching to a different chat
+            if ((isAIBot || isHIBPChat) && user.email !== 'ai_assistant' && user.email !== 'breach_checker') {
+                // Delete all messages in the previous chat
+                const previousChatKey = currentUserEmail < (isAIBot ? 'ai_assistant' : 'breach_checker')
+                    ? `${currentUserEmail}_${isAIBot ? 'ai_assistant' : 'breach_checker'}`
+                    : `${isAIBot ? 'ai_assistant' : 'breach_checker'}_${currentUserEmail}`;
+                
+                const previousMessagesRef = collection(db, "messages", previousChatKey, "chats");
+                getDocs(previousMessagesRef).then(snapshot => {
+                    snapshot.forEach(doc => {
+                        deleteDoc(doc.ref);
+                    });
+                });
+            }
+            
+            selectedChatUser = user;
+            document.getElementById('chat-header').textContent = `${user.username}`;
+            document.getElementById('messages').innerHTML = '';
+            isAIBot = user.email === 'ai_assistant';
+            isHIBPChat = user.email === 'breach_checker';
+            loadMessages();
+        }
+
+        function loadMessages() {
+            if (!selectedChatUser) return;
+
+            const chatKey = [currentUserEmail, selectedChatUser.email].sort().join('_');
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '<p>Loading messages...</p>';
+            
+            const messagesRef = collection(db, "messages", chatKey, "chats");
+            const messagesQuery = query(messagesRef, orderBy("timestamp"));
+            
+            onSnapshot(messagesQuery, (snapshot) => {
+                messagesDiv.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const msg = doc.data();
+                    // Check if message should be deleted
+                    if (msg.deleteAt && msg.deleteAt < Date.now()) {
+                        deleteDoc(doc.ref);
+                        return;
+                    }
+
+                    const msgElement = document.createElement('div');
+                    msgElement.classList.add('message', msg.sender === currentUserEmail ? 'own-message' : 'other-message');
+                    
+                    const messageContent = document.createElement('div');
+                    messageContent.classList.add('message-content');
+                    messageContent.innerHTML = `<span>${msg.text}</span>`;
+                    
+                    const messageInfo = document.createElement('div');
+                    messageInfo.classList.add('message-info');
+                    messageInfo.innerHTML = `
+                        <small>${new Date(msg.timestamp).toLocaleTimeString()}</small>
+                        ${msg.deleteAt ? `<small class="delete-time">Deletes in ${Math.ceil((msg.deleteAt - Date.now()) / 60000)}m</small>` : ''}
+                    `;
+                    
+                    msgElement.appendChild(messageContent);
+                    msgElement.appendChild(messageInfo);
+                    messagesDiv.appendChild(msgElement);
+                });
+            });
+        }
+
+        // Update status when user logs in
+        onAuthStateChanged(auth, user => {
+            if (!user) {
+                handleBeforeUnload();
+                window.location.href = 'index.html';
+            } else {
+                currentUserEmail = user.email;
+                updateUserStatus(true);
+                loadContacts();
+                loadGroups();
+
+                // Set up event listeners
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                window.addEventListener('beforeunload', handleBeforeUnload);
+                window.addEventListener('pagehide', handleBeforeUnload);
+
+                // Set up periodic status update
+                setInterval(() => {
+                    if (document.visibilityState === 'visible') {
+                        updateUserStatus(true);
+                    }
+                }, STATUS_UPDATE_INTERVAL);
+            }
+        });
+
+        // Make all necessary functions globally available
+        window.sendMessage = sendMessage;
+        window.logout = logout;
+        window.selectChat = selectChat;
+        window.selectGroup = selectGroup;
+    </script>
+
+   
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">WeVitChat</div>
+        <div class="group-buttons">
+            <button class="group-button" onclick="createGroup()">Create Group</button>
+            <button class="group-button" onclick="joinGroup()">Join Group</button>
+        </div>
+        <div class="section-header">Groups</div>
+        <div class="groups" id="groups">
+        </div>
+        <div class="section-header">Direct Messages</div>
+        <div class="contacts" id="contacts">
+        </div>
+        <button onclick="logout()">Logout</button>
+    </div>
+    <div class="chat-container">
+        <div class="chat-header" id="chat-header">Select a contact to chat</div>
+        <div class="messages" id="messages"></div>
+        <div class="auto-delete-options">
+            <div class="auto-delete-option">
+                <input type="radio" name="autoDelete" value="" id="deleteOff" checked>
+                <label for="deleteOff">Off</label>
+            </div>
+            <div class="auto-delete-option">
+                <input type="radio" name="autoDelete" value="1" id="delete1min">
+                <label for="delete1min">1 min</label>
+            </div>
+            <div class="auto-delete-option">
+                <input type="radio" name="autoDelete" value="15" id="delete15min">
+                <label for="delete15min">15 min</label>
+            </div>
+            <div class="auto-delete-option">
+                <input type="radio" name="autoDelete" value="30" id="delete30min">
+                <label for="delete30min">30 min</label>
+            </div>
+            <div class="auto-delete-option">
+                <input type="radio" name="autoDelete" value="60" id="delete1hour">
+                <label for="delete1hour">1 hour</label>
+            </div>
+            <div class="auto-delete-option">
+                <input type="radio" name="autoDelete" value="600" id="delete10hour">
+                <label for="delete10hour">10 hours</label>
+            </div>
+            <div class="auto-delete-option">
+                <input type="radio" name="autoDelete" value="1440" id="delete1day">
+                <label for="delete1day">1 day</label>
+            </div>
+        </div>
+        <div class="input-box">
+            <input type="text" id="messageInput" placeholder="Type a message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</body>
+</html>
